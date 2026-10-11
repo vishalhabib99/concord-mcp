@@ -15,6 +15,7 @@ import {
   removeMcpServer,
   upsertGeminiSettings,
   upsertGrokMcpServer,
+  upsertMcpServer,
 } from './mcp-config.js';
 
 /** What turning global mode on or off changed, and what it could not. */
@@ -51,7 +52,9 @@ function instructionFile(executable: string, path: (env: NodeJS.ProcessEnv) => s
  * Each harness's user-level instructions, and the MCP registration for the
  * harnesses whose user config Concord edits directly. Codex and Goose are
  * registered machine-wide by their adapters already; Claude Code through its
- * own CLI, below. Cursor's user rules are not a file, so it is not here.
+ * own CLI, below. Cursor's user rules are not a file: its instructions arrive
+ * through its global sessionStart hook instead, and its server finds the open
+ * folder by asking for the client's roots.
  */
 const USER_FILES: readonly UserFile[] = [
   instructionFile('claude', (env) => join(claudeConfigDir(env), 'CLAUDE.md')),
@@ -63,6 +66,12 @@ const USER_FILES: readonly UserFile[] = [
     path: (env) => join(userHome(env), '.gemini', 'settings.json'),
     install: (existing) => upsertGeminiSettings(existing),
     // Only the server goes: the shell settings may serve other tools by now.
+    uninstall: removeMcpServer,
+  },
+  {
+    executable: 'cursor',
+    path: (env) => join(userHome(env), '.cursor', 'mcp.json'),
+    install: (existing) => upsertMcpServer(existing),
     uninstall: removeMcpServer,
   },
   {
